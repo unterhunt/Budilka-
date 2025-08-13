@@ -1,3 +1,4 @@
+
 name: Build APK
 
 on:
@@ -13,7 +14,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Ustvari CEL projekt (z Firebase)
+      # USTVARI CEL ANDROID PROJEKT (z možnostjo Firebase)
       - name: Generate Android project
         shell: bash
         run: |
@@ -22,6 +23,7 @@ jobs:
           mkdir -p app/src/main/res/layout
           mkdir -p .github/workflows
 
+          # ---------- settings.gradle.kts ----------
           cat > settings.gradle.kts <<'EOF'
           pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
           dependencyResolutionManagement {
@@ -32,6 +34,7 @@ jobs:
           include(":app")
           EOF
 
+          # ---------- root build.gradle.kts ----------
           cat > build.gradle.kts <<'EOF'
           plugins {
             id("com.android.application") version "8.5.1" apply false
@@ -40,35 +43,55 @@ jobs:
           }
           EOF
 
+          # ---------- gradle.properties ----------
           cat > gradle.properties <<'EOF'
           org.gradle.jvmargs=-Xmx2g -Dfile.encoding=UTF-8
           android.useAndroidX=true
           android.enableJetifier=true
           EOF
 
+          # ---------- app/build.gradle.kts ----------
           cat > app/build.gradle.kts <<'EOF'
-          plugins { id("com.android.application"); kotlin("android"); id("com.google.gms.google-services") }
+          plugins {
+            id("com.android.application")
+            kotlin("android")
+          }
+          // Google plugin se vklopi SAMO, če obstaja google-services.json
+          if (file("google-services.json").exists()) {
+            apply(plugin = "com.google.gms.google-services")
+          }
+
           android {
-            namespace = "com.budilkaekipa.app"; compileSdk = 34
+            namespace = "com.budilkaekipa.app"
+            compileSdk = 34
             defaultConfig {
               applicationId = "com.budilkaekipa.app"
-              minSdk = 24; targetSdk = 34; versionCode = 1; versionName = "1.0"
+              minSdk = 24
+              targetSdk = 34
+              versionCode = 1
+              versionName = "1.0"
             }
-            buildTypes { release { isMinifyEnabled = false }; debug { isMinifyEnabled = false } }
+            buildTypes {
+              release { isMinifyEnabled = false }
+              debug { isMinifyEnabled = false }
+            }
             buildFeatures { viewBinding = true }
           }
+
           dependencies {
             implementation("androidx.core:core-ktx:1.13.1")
             implementation("androidx.appcompat:appcompat:1.7.0")
             implementation("com.google.android.material:material:1.12.0")
             implementation("androidx.constraintlayout:constraintlayout:2.1.4")
-            // Firebase
+
+            // Firebase (pripravljenost; deluje tudi brez JSON-a, ker se plugin ne vklopi)
             implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
             implementation("com.google.firebase:firebase-auth-ktx")
             implementation("com.google.firebase:firebase-database-ktx")
           }
           EOF
 
+          # ---------- AndroidManifest ----------
           cat > app/src/main/AndroidManifest.xml <<'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.budilkaekipa.app">
             <uses-permission android:name="android.permission.INTERNET"/>
@@ -87,6 +110,7 @@ jobs:
           </manifest>
           EOF
 
+          # ---------- Layouti ----------
           cat > app/src/main/res/layout/activity_main.xml <<'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -147,7 +171,7 @@ jobs:
           </androidx.constraintlayout.widget.ConstraintLayout>
           EOF
 
-          # Kotlin (poenostavljeno – brez Firebase klica, da je build stabilen)
+          # ---------- Kotlin ----------
           cat > app/src/main/java/com/budilkaekipa/app/UI.kt <<'EOF'
           package com.budilkaekipa.app
           import android.content.Context
@@ -175,10 +199,24 @@ jobs:
           import android.content.Context
           import org.json.JSONObject
           object TeamStore{
-            fun ensureInit(ctx: Context, team: List<String>){ val st=Prefs.getStatus(ctx); var changed=false; team.forEach{n-> if(!st.has(n)){ st.put(n,0); changed=true } }; if(changed) Prefs.setStatus(ctx, st) }
-            fun resetAllRed(ctx: Context){ val st=Prefs.getStatus(ctx); val it=st.keys(); while(it.hasNext()){ val n=it.next(); st.put(n,0) }; Prefs.setStatus(ctx, st) }
-            fun setGreen(ctx: Context, name:String){ val st=Prefs.getStatus(ctx); st.put(name,1); Prefs.setStatus(ctx, st) }
-            fun listWithDots(ctx: Context): List<Pair<String,String>>{ val st=Prefs.getStatus(ctx); val out=mutableListOf<Pair<String,String>>(); st.keys().forEach{n-> out += (if(st.optInt(n,0)==1) "🟢" else "🔴") to n }; return out }
+            fun ensureInit(ctx: Context, team: List<String>){
+              val st=Prefs.getStatus(ctx); var changed=false
+              team.forEach{n-> if(!st.has(n)){ st.put(n,0); changed=true } }
+              if(changed) Prefs.setStatus(ctx, st)
+            }
+            fun resetAllRed(ctx: Context){
+              val st=Prefs.getStatus(ctx); val it=st.keys()
+              while(it.hasNext()){ val n=it.next(); st.put(n,0) }
+              Prefs.setStatus(ctx, st)
+            }
+            fun setGreen(ctx: Context, name:String){
+              val st=Prefs.getStatus(ctx); st.put(name,1); Prefs.setStatus(ctx, st)
+            }
+            fun listWithDots(ctx: Context): List<Pair<String,String>>{
+              val st=Prefs.getStatus(ctx); val out=mutableListOf<Pair<String,String>>()
+              st.keys().forEach{n-> out += (if(st.optInt(n,0)==1) "🟢" else "🔴") to n }
+              return out
+            }
             private fun JSONObject.keys(): Sequence<String> = keys().asSequence()
           }
           EOF
@@ -187,16 +225,27 @@ jobs:
           package com.budilkaekipa.app
           import android.app.*; import android.content.*; import java.util.*
           object AlarmScheduler{
-            private fun pi(ctx: Context)=PendingIntent.getBroadcast(ctx,101, Intent(ctx, AlarmReceiver::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            private fun pi(ctx: Context)=PendingIntent.getBroadcast(ctx,101, Intent(ctx, AlarmReceiver::class.java),
+              PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
             fun scheduleExact(ctx: Context){
-              val (h,m)=Prefs.getAlarmTime(ctx).split(":").map{it.toInt()}; val cal=Calendar.getInstance().apply{
-                set(Calendar.SECOND,0); set(Calendar.MILLISECOND,0); set(Calendar.HOUR_OF_DAY,h); set(Calendar.MINUTE,m); if(timeInMillis<=System.currentTimeMillis()) add(Calendar.DAY_OF_YEAR,1)
+              val (h,m)=Prefs.getAlarmTime(ctx).split(":").map{it.toInt()}
+              val cal=Calendar.getInstance().apply{
+                set(Calendar.SECOND,0); set(Calendar.MILLISECOND,0)
+                set(Calendar.HOUR_OF_DAY,h); set(Calendar.MINUTE,m)
+                if(timeInMillis<=System.currentTimeMillis()) add(Calendar.DAY_OF_YEAR,1)
               }
-              val am=ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager; am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi(ctx))
+              val am=ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+              am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi(ctx))
             }
             fun scheduleNextDay(ctx: Context){
-              val (h,m)=Prefs.getAlarmTime(ctx).split(":").map{it.toInt()}; val cal=Calendar.getInstance().apply{ add(Calendar.DAY_OF_YEAR,1); set(Calendar.SECOND,0); set(Calendar.MILLISECOND,0); set(Calendar.HOUR_OF_DAY,h); set(Calendar.MINUTE,m) }
-              val am=ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager; am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi(ctx))
+              val (h,m)=Prefs.getAlarmTime(ctx).split(":").map{it.toInt()}
+              val cal=Calendar.getInstance().apply{
+                add(Calendar.DAY_OF_YEAR,1)
+                set(Calendar.SECOND,0); set(Calendar.MILLISECOND,0)
+                set(Calendar.HOUR_OF_DAY,h); set(Calendar.MINUTE,m)
+              }
+              val am=ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+              am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi(ctx))
             }
           }
           EOF
@@ -206,7 +255,9 @@ jobs:
           import android.content.*
           class AlarmReceiver: BroadcastReceiver(){
             override fun onReceive(context: Context, intent: Intent){
-              TeamStore.resetAllRed(context); AlarmService.startForeground(context); UnlockActivity.launchFromAlarm(context)
+              TeamStore.resetAllRed(context)
+              AlarmService.startForeground(context)
+              UnlockActivity.launchFromAlarm(context)
               if(Prefs.getRepeat(context)) AlarmScheduler.scheduleNextDay(context)
             }
           }
@@ -216,19 +267,58 @@ jobs:
           package com.budilkaekipa.app
           import android.app.*; import android.content.*; import android.media.*; import android.os.*; import androidx.core.app.NotificationCompat
           class AlarmService: Service(){
-            private var tone: ToneGenerator?=null; private var wake: PowerManager.WakeLock?=null
+            private var tone: ToneGenerator?=null
+            private var wake: PowerManager.WakeLock?=null
             override fun onBind(i: Intent?)=null
-            override fun onCreate(){ super.onCreate(); val pm=getSystemService(Context.POWER_SERVICE) as PowerManager; wake=pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"BudilkaEkipa:AlarmWake").apply{ setReferenceCounted(false); acquire(60000) } }
-            override fun onStartCommand(i: Intent?, f:Int, id:Int):Int{ startForeground(7771, notif()); startTone(); return START_STICKY }
-            private fun startTone(){ tone=ToneGenerator(AudioManager.STREAM_ALARM,100); Thread{ repeat(9999){ tone?.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD,1200); Thread.sleep(400); if(tone==null) return@Thread } }.start() }
-            private fun notif(): Notification {
-              val ch="alarm_channel"; val nm=getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-              if (Build.VERSION.SDK_INT>=26) nm.createNotificationChannel(NotificationChannel(ch,"Budilka", NotificationManager.IMPORTANCE_HIGH).apply{ setSound(null,null) })
-              val pi=PendingIntent.getActivity(this,0, Intent(this, UnlockActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-              return NotificationCompat.Builder(this,ch).setContentTitle("Budilka Ekipa").setContentText("ALARM – vpiši: buden sem").setSmallIcon(android.R.drawable.ic_lock_idle_alarm).setPriority(NotificationCompat.PRIORITY_MAX).setCategory(NotificationCompat.CATEGORY_ALARM).setFullScreenIntent(pi,true).setOngoing(true).build()
+            override fun onCreate(){
+              super.onCreate()
+              val pm=getSystemService(Context.POWER_SERVICE) as PowerManager
+              wake=pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"BudilkaEkipa:AlarmWake")
+                .apply{ setReferenceCounted(false); acquire(60000) }
             }
-            override fun onDestroy(){ super.onDestroy(); tone?.release(); tone=null; wake?.let{ if(it.isHeld) it.release() } }
-            companion object{ fun startForeground(ctx: Context){ val i=Intent(ctx, AlarmService::class.java); if(Build.VERSION.SDK_INT>=26) ctx.startForegroundService(i) else ctx.startService(i) } fun stopForeground(ctx: Context){ ctx.stopService(Intent(ctx, AlarmService::class.java)) } }
+            override fun onStartCommand(i: Intent?, f:Int, id:Int):Int{
+              startForeground(7771, notif()); startTone(); return START_STICKY
+            }
+            private fun startTone(){
+              tone=ToneGenerator(AudioManager.STREAM_ALARM,100)
+              Thread{
+                repeat(9999){
+                  tone?.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD,1200)
+                  Thread.sleep(400)
+                  if(tone==null) return@Thread
+                }
+              }.start()
+            }
+            private fun notif(): Notification {
+              val ch="alarm_channel"
+              val nm=getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+              if (Build.VERSION.SDK_INT>=26)
+                nm.createNotificationChannel(NotificationChannel(ch,"Budilka", NotificationManager.IMPORTANCE_HIGH).apply{ setSound(null,null) })
+              val pi=PendingIntent.getActivity(this,0,
+                Intent(this, UnlockActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+              return NotificationCompat.Builder(this,ch)
+                .setContentTitle("Budilka Ekipa")
+                .setContentText("ALARM – vpiši: buden sem")
+                .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setCategory(NotificationCompat.CATEGORY_ALARM)
+                .setFullScreenIntent(pi,true)
+                .setOngoing(true)
+                .build()
+            }
+            override fun onDestroy(){
+              super.onDestroy()
+              tone?.release(); tone=null
+              wake?.let{ if(it.isHeld) it.release() }
+            }
+            companion object{
+              fun startForeground(ctx: Context){
+                val i=Intent(ctx, AlarmService::class.java)
+                if(Build.VERSION.SDK_INT>=26) ctx.startForegroundService(i) else ctx.startService(i)
+              }
+              fun stopForeground(ctx: Context){ ctx.stopService(Intent(ctx, AlarmService::class.java)) }
+            }
           }
           EOF
 
@@ -254,45 +344,16 @@ jobs:
           }
           EOF
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-
-      - name: Set up Android SDK (API 34)
-        uses: android-actions/setup-android@v3
-        with:
-          packages: |
-            platforms;android-34
-            build-tools;34.0.0
-
-      - name: Accept Android SDK licenses
-        run: yes | sdkmanager --licenses
-
-      # (B opcija) Če dodáš JSON kot SECRET (GOOGLE_SERVICES_JSON), ga zapišemo v datoteko
-      - name: Write google-services.json from secret
-        if: ${{ secrets.GOOGLE_SERVICES_JSON != '' }}
-        env:
-          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
-        run: |
-          mkdir -p app
-          python - << 'PY'
-          import os, json
-          s = os.environ.get('GOOGLE_SERVICES_JSON') or ''
-          open('app/google-services.json','w').write(s)
-          print('google-services.json written, size:', len(s))
-          PY
-
-      - name: Build with Gradle
-        uses: gradle/gradle-build-action@v3
-        with:
-          gradle-version: 8.7
-          arguments: assembleDebug
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: BudilkaEkipa-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
-          
+          cat > app/src/main/java/com/budilkaekipa/app/MainActivity.kt <<'EOF'
+          package com.budilkaekipa.app
+          import android.app.TimePickerDialog; import android.os.Bundle; import android.widget.ArrayAdapter; import androidx.appcompat.app.AppCompatActivity
+          import com.budilkaekipa.app.databinding.ActivityMainBinding; import java.util.Calendar
+          class MainActivity: AppCompatActivity(){
+            private lateinit var b: ActivityMainBinding
+            private val team=listOf("David Javernik","Dani Javernik","Jure Urbas")
+            override fun onCreate(savedInstanceState: Bundle?){
+              super.onCreate(savedInstanceState); b=ActivityMainBinding.inflate(layoutInflater); setContentView(b.root)
+              TeamStore.ensureInit(this, team); show(); b.swRepeat.isChecked=Prefs.getRepeat(this); refreshTeam()
+              b.btnPick.setOnClickListener{ pick() }
+              b.btnArm.setOnClickListener{ AlarmScheduler.scheduleExact(this); UI.toast(this,"Budilka pripravljena (${Prefs.getAlarmTime(this)})") }
+              b.swRepeat.setOnCheckedChangeListener{_,v-> Prefs.setRepeat
