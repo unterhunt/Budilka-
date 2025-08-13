@@ -1,4 +1,4 @@
-name: Build APK
+name: Build and Distribute APK
 
 on:
   workflow_dispatch:
@@ -13,7 +13,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 1) Ustvari CEL Android projekt (z opcijskim Firebase)
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
       - name: Generate Android project
         shell: bash
         run: |
@@ -37,7 +45,7 @@ jobs:
           cat > build.gradle.kts <<'EOF'
           plugins {
             id("com.android.application") version "8.5.1" apply false
-            kotlin("android") version "1.9.24" apply false
+            id("org.jetbrains.kotlin.android") version "1.9.24" apply false
             id("com.google.gms.google-services") version "4.4.2" apply false
           }
           EOF
@@ -53,7 +61,7 @@ jobs:
           cat > app/build.gradle.kts <<'EOF'
           plugins {
             id("com.android.application")
-            kotlin("android")
+            id("org.jetbrains.kotlin.android")
           }
           // Google plugin se vklopi SAMO, če obstaja google-services.json
           if (file("google-services.json").exists()) {
@@ -71,10 +79,17 @@ jobs:
               versionName = "1.0"
             }
             buildTypes {
-              release { isMinifyEnabled = false }
-              debug { isMinifyEnabled = false }
+              release {
+                isMinifyEnabled = false
+                proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+              }
+              debug {
+                isMinifyEnabled = false
+              }
             }
-            buildFeatures { viewBinding = true }
+            buildFeatures {
+              viewBinding = true
+            }
           }
 
           dependencies {
@@ -84,9 +99,11 @@ jobs:
             implementation("androidx.constraintlayout:constraintlayout:2.1.4")
 
             // Firebase pripravljeno (če dodaš google-services.json)
-            implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
-            implementation("com.google.firebase:firebase-auth-ktx")
-            implementation("com.google.firebase:firebase-database-ktx")
+            if (file("google-services.json").exists()) {
+              implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
+              implementation("com.google.firebase:firebase-auth-ktx")
+              implementation("com.google.firebase:firebase-database-ktx")
+            }
           }
           EOF
 
@@ -98,7 +115,11 @@ jobs:
             <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
             <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
             <uses-permission android:name="android.permission.WAKE_LOCK"/>
-            <application android:allowBackup="true" android:label="Budilka Ekipa" android:icon="@android:drawable/ic_lock_idle_alarm" android:theme="@style/Theme.Material3.DayNight.NoActionBar">
+            <application
+              android:allowBackup="true"
+              android:label="Budilka Ekipa"
+              android:icon="@mipmap/ic_launcher"
+              android:theme="@style/Theme.Material3.DayNight.NoActionBar">
               <activity android:name=".UnlockActivity" android:exported="false" android:turnScreenOn="true" android:showWhenLocked="true"/>
               <activity android:name=".MainActivity" android:exported="true">
                 <intent-filter>
@@ -106,7 +127,7 @@ jobs:
                   <category android:name="android.intent.category.LAUNCHER"/>
                 </intent-filter>
               </activity>
-              <service android:name=".AlarmService" android:exported="false" android:foregroundServiceType="mediaPlayback"/>
+              <service android:name=".AlarmService" android:exported="false" android:foregroundServiceType="specialUse"/>
               <receiver android:name=".AlarmReceiver" android:exported="true"/>
             </application>
           </manifest>
@@ -117,240 +138,95 @@ jobs:
           <?xml version="1.0" encoding="utf-8"?>
           <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
               xmlns:app="http://schemas.android.com/apk/res-auto"
-              android:padding="16dp" android:layout_width="match_parent" android:layout_height="match_parent">
+              android:padding="16dp"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent">
 
-            <TextView android:id="@+id/tvTime" android:text="Čas budilke: --:--" android:textSize="18sp"
-              android:layout_width="0dp" android:layout_height="wrap_content"
-              app:layout_constraintTop_toTopOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"/>
+            <TextView
+              android:id="@+id/tvTime"
+              android:text="Čas budilke: --:--"
+              android:textSize="18sp"
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:contentDescription="Prikaz časa budilke"
+              app:layout_constraintTop_toTopOf="parent"
+              app:layout_constraintStart_toStartOf="parent"
+              app:layout_constraintEnd_toEndOf="parent"/>
 
-            <Button android:id="@+id/btnPick" android:text="Nastavi čas" android:layout_width="0dp" android:layout_height="wrap_content"
-              app:layout_constraintTop_toBottomOf="@id/tvTime" app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toStartOf="@id/btnArm"
-              app:layout_constraintHorizontalWeight="1" android:layout_marginTop="12dp" android:layout_marginEnd="8dp"/>
+            <Button
+              android:id="@+id/btnPick"
+              android:text="Nastavi čas"
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:contentDescription="Nastavi čas budilke"
+              app:layout_constraintTop_toBottomOf="@id/tvTime"
+              app:layout_constraintStart_toStartOf="parent"
+              app:layout_constraintEnd_toStartOf="@id/btnArm"
+              app:layout_constraintHorizontalWeight="1"
+              android:layout_marginTop="12dp"
+              android:layout_marginEnd="8dp"/>
 
-            <Button android:id="@+id/btnArm" android:text="Vklopi (ARM)" android:layout_width="0dp" android:layout_height="wrap_content"
-              app:layout_constraintTop_toBottomOf="@id/tvTime" app:layout_constraintStart_toEndOf="@id/btnPick" app:layout_constraintEnd_toEndOf="parent"
-              app:layout_constraintHorizontalWeight="1" android:layout_marginTop="12dp" android:layout_marginStart="8dp"/>
+            <Button
+              android:id="@+id/btnArm"
+              android:text="Vklopi (ARM)"
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:contentDescription="Vklopi budilko"
+              app:layout_constraintTop_toBottomOf="@id/tvTime"
+              app:layout_constraintStart_toEndOf="@id/btnPick"
+              app:layout_constraintEnd_toEndOf="parent"
+              app:layout_constraintHorizontalWeight="1"
+              android:layout_marginTop="12dp"
+              android:layout_marginStart="8dp"/>
 
-            <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/swRepeat" android:text="Ponovi vsak dan"
-              android:layout_width="wrap_content" android:layout_height="wrap_content"
-              app:layout_constraintTop_toBottomOf="@id/btnPick" app:layout_constraintStart_toStartOf="parent" android:layout_marginTop="12dp"/>
+            <com.google.android.material.switchmaterial.SwitchMaterial
+              android:id="@+id/swRepeat"
+              android:text="Ponovi vsak dan"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:contentDescription="Ponovi budilko vsak dan"
+              app:layout_constraintTop_toBottomOf="@id/btnPick"
+              app:layout_constraintStart_toStartOf="parent"
+              android:layout_marginTop="12dp"/>
 
-            <Button android:id="@+id/btnTest" android:text="TEST ALARM" android:layout_width="wrap_content" android:layout_height="wrap_content"
-              app:layout_constraintTop_toBottomOf="@id/swRepeat" app:layout_constraintStart_toStartOf="parent" android:layout_marginTop="12dp"/>
-
-            <TextView android:id="@+id/tvTeam" android:text="Ekipa (🔴 rdeča / 🟢 zelena)" android:textStyle="bold"
-              android:layout_width="0dp" android:layout_height="wrap_content"
-              app:layout_constraintTop_toBottomOf="@id/btnTest" app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent" android:layout_marginTop="16dp"/>
-
-            <ListView android:id="@+id/lvTeam" android:layout_width="0dp" android:layout_height="0dp"
-              app:layout_constraintTop_toBottomOf="@id/tvTeam" app:layout_constraintBottom_toBottomOf="parent"
-              app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent" android:dividerHeight="8dp" android:paddingTop="8dp"/>
+            <Button
+              android:id="@+id/btnTest"
+              android:text="Testiraj budilko"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:contentDescription="Testiraj budilko"
+              app:layout_constraintTop_toBottomOf="@id/swRepeat"
+              app:layout_constraintStart_toStartOf="parent"
+              android:layout_marginTop="12dp"/>
           </androidx.constraintlayout.widget.ConstraintLayout>
           EOF
 
-          cat > app/src/main/res/layout/activity_unlock.xml <<'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-              xmlns:app="http://schemas.android.com/apk/res-auto"
-              android:padding="16dp" android:layout_width="match_parent" android:layout_height="match_parent">
+          # ---------- Dodaj ikono aplikacije ----------
+          mkdir -p app/src/main/res/mipmap
+          # Opomba: Ikona ni ustvarjena v tem workflowu. Dodaj ic_launcher.png v app/src/main/res/mipmap/
 
-            <TextView android:id="@+id/tvTitle" android:text="ALARM! Vpiši: buden sem" android:textStyle="bold" android:textSize="20sp"
-              android:layout_width="0dp" android:layout_height="wrap_content"
-              app:layout_constraintTop_toTopOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"/>
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
 
-            <Spinner android:id="@+id/spUser" android:layout_width="0dp" android:layout_height="wrap_content"
-              app:layout_constraintTop_toBottomOf="@id/tvTitle" app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent" android:layout_marginTop="12dp"/>
+      - name: Build APK
+        run: ./gradlew assembleDebug
 
-            <EditText android:id="@+id/etCode" android:hint="buden sem" android:inputType="text" android:layout_width="0dp" android:layout_height="wrap_content"
-              app:layout_constraintTop_toBottomOf="@id/spUser" app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent" android:layout_marginTop="12dp"/>
+      - name: Authenticate with Firebase
+        run: echo "${{ secrets.FIREBASE_TOKEN }}" | firebase login:ci
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
 
-            <Button android:id="@+id/btnStop" android:text="Ugasni alarm" android:layout_width="0dp" android:layout_height="wrap_content"
-              app:layout_constraintTop_toBottomOf="@id/etCode" app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent" android:layout_marginTop="12dp"/>
+      - name: Distribute APK to Firebase App Distribution
+        run: |
+          firebase appdistribution:distribute app/build/outputs/apk/debug/app-debug.apk \
+            --app "${{ secrets.FIREBASE_APP_ID }}" \
+            --groups "testers" \
+            --release-notes "Nova različica aplikacije Budilka Ekipa za testiranje"
+        env:
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
 
-            <ListView android:id="@+id/lvTeamUnlock" android:layout_width="0dp" android:layout_height="0dp"
-              app:layout_constraintTop_toBottomOf="@id/btnStop" app:layout_constraintBottom_toBottomOf="parent"
-              app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent" android:dividerHeight="8dp" android:paddingTop="12dp"/>
-          </androidx.constraintlayout.widget.ConstraintLayout>
-          EOF
-
-          # ---------- Kotlin ----------
-          cat > app/src/main/java/com/budilkaekipa/app/UI.kt <<'EOF'
-          package com.budilkaekipa.app
-          import android.content.Context
-          import android.widget.Toast
-          object UI { fun toast(ctx: Context, msg: String) = Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show() }
-          EOF
-
-          cat > app/src/main/java/com/budilkaekipa/app/Prefs.kt <<'EOF'
-          package com.budilkaekipa.app
-          import android.content.Context
-          import org.json.JSONObject
-          object Prefs{
-            private fun sp(ctx: Context)=ctx.getSharedPreferences("budilka", Context.MODE_PRIVATE)
-            fun getAlarmTime(ctx: Context)=sp(ctx).getString("alarmTime","03:00")?:"03:00"
-            fun setAlarmTime(ctx: Context, t:String){ sp(ctx).edit().putString("alarmTime",t).apply() }
-            fun getRepeat(ctx: Context)=sp(ctx).getBoolean("repeat",true)
-            fun setRepeat(ctx: Context, v:Boolean){ sp(ctx).edit().putBoolean("repeat",v).apply() }
-            fun getStatus(ctx: Context)=try{ JSONObject(sp(ctx).getString("status","{}")?:"{}") }catch(e:Exception){ JSONObject() }
-            fun setStatus(ctx: Context, json:JSONObject){ sp(ctx).edit().putString("status", json.toString()).apply() }
-          }
-          EOF
-
-          cat > app/src/main/java/com/budilkaekipa/app/TeamStore.kt <<'EOF'
-          package com.budilkaekipa.app
-          import android.content.Context
-          import org.json.JSONObject
-          object TeamStore{
-            fun ensureInit(ctx: Context, team: List<String>){
-              val st=Prefs.getStatus(ctx); var changed=false
-              team.forEach{n-> if(!st.has(n)){ st.put(n,0); changed=true } }
-              if(changed) Prefs.setStatus(ctx, st)
-            }
-            fun resetAllRed(ctx: Context){
-              val st=Prefs.getStatus(ctx); val it=st.keys()
-              while(it.hasNext()){ val n=it.next(); st.put(n,0) }
-              Prefs.setStatus(ctx, st)
-            }
-            fun setGreen(ctx: Context, name:String){
-              val st=Prefs.getStatus(ctx); st.put(name,1); Prefs.setStatus(ctx, st)
-            }
-            fun listWithDots(ctx: Context): List<Pair<String,String>>{
-              val st=Prefs.getStatus(ctx); val out=mutableListOf<Pair<String,String>>()
-              st.keys().forEach{n-> out += (if(st.optInt(n,0)==1) "🟢" else "🔴") to n }
-              return out
-            }
-            private fun JSONObject.keys(): Sequence<String> = keys().asSequence()
-          }
-          EOF
-
-          cat > app/src/main/java/com/budilkaekipa/app/AlarmScheduler.kt <<'EOF'
-          package com.budilkaekipa.app
-          import android.app.*; import android.content.*; import java.util.*
-          object AlarmScheduler{
-            private fun pi(ctx: Context)=PendingIntent.getBroadcast(ctx,101, Intent(ctx, AlarmReceiver::class.java),
-              PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-            fun scheduleExact(ctx: Context){
-              val (h,m)=Prefs.getAlarmTime(ctx).split(":").map{it.toInt()}
-              val cal=Calendar.getInstance().apply{
-                set(Calendar.SECOND,0); set(Calendar.MILLISECOND,0)
-                set(Calendar.HOUR_OF_DAY,h); set(Calendar.MINUTE,m)
-                if(timeInMillis<=System.currentTimeMillis()) add(Calendar.DAY_OF_YEAR,1)
-              }
-              val am=ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-              am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi(ctx))
-            }
-            fun scheduleNextDay(ctx: Context){
-              val (h,m)=Prefs.getAlarmTime(ctx).split(":").map{it.toInt()}
-              val cal=Calendar.getInstance().apply{
-                add(Calendar.DAY_OF_YEAR,1)
-                set(Calendar.SECOND,0); set(Calendar.MILLISECOND,0)
-                set(Calendar.HOUR_OF_DAY,h); set(Calendar.MINUTE,m)
-              }
-              val am=ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-              am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi(ctx))
-            }
-          }
-          EOF
-
-          cat > app/src/main/java/com/budilkaekipa/app/AlarmReceiver.kt <<'EOF'
-          package com.budilkaekipa.app
-          import android.content.*
-          class AlarmReceiver: BroadcastReceiver(){
-            override fun onReceive(context: Context, intent: Intent){
-              TeamStore.resetAllRed(context)
-              AlarmService.startForeground(context)
-              UnlockActivity.launchFromAlarm(context)
-              if(Prefs.getRepeat(context)) AlarmScheduler.scheduleNextDay(context)
-            }
-          }
-          EOF
-
-          cat > app/src/main/java/com/budilkaekipa/app/AlarmService.kt <<'EOF'
-          package com.budilkaekipa.app
-          import android.app.*; import android.content.*; import android.media.*; import android.os.*; import androidx.core.app.NotificationCompat
-          class AlarmService: Service(){
-            private var tone: ToneGenerator?=null
-            private var wake: PowerManager.WakeLock?=null
-            override fun onBind(i: Intent?)=null
-            override fun onCreate(){
-              super.onCreate()
-              val pm=getSystemService(Context.POWER_SERVICE) as PowerManager
-              wake=pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"BudilkaEkipa:AlarmWake")
-                .apply{ setReferenceCounted(false); acquire(60000) }
-            }
-            override fun onStartCommand(i: Intent?, f:Int, id:Int):Int{
-              startForeground(7771, notif()); startTone(); return START_STICKY
-            }
-            private fun startTone(){
-              tone=ToneGenerator(AudioManager.STREAM_ALARM,100)
-              Thread{
-                repeat(9999){
-                  tone?.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD,1200)
-                  Thread.sleep(400)
-                  if(tone==null) return@Thread
-                }
-              }.start()
-            }
-            private fun notif(): Notification {
-              val ch="alarm_channel"
-              val nm=getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-              if (Build.VERSION.SDK_INT>=26)
-                nm.createNotificationChannel(NotificationChannel(ch,"Budilka", NotificationManager.IMPORTANCE_HIGH).apply{ setSound(null,null) })
-              val pi=PendingIntent.getActivity(this,0,
-                Intent(this, UnlockActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK),
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-              return NotificationCompat.Builder(this,ch)
-                .setContentTitle("Budilka Ekipa")
-                .setContentText("ALARM – vpiši: buden sem")
-                .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-                .setPriority(NotificationCompat.PRIORITY_MAX)
-                .setCategory(NotificationCompat.CATEGORY_ALARM)
-                .setFullScreenIntent(pi,true)
-                .setOngoing(true)
-                .build()
-            }
-            override fun onDestroy(){
-              super.onDestroy()
-              tone?.release(); tone=null
-              wake?.let{ if(it.isHeld) it.release() }
-            }
-            companion object{
-              fun startForeground(ctx: Context){
-                val i=Intent(ctx, AlarmService::class.java)
-                if(Build.VERSION.SDK_INT>=26) ctx.startForegroundService(i) else ctx.startService(i)
-              }
-              fun stopForeground(ctx: Context){ ctx.stopService(Intent(ctx, AlarmService::class.java)) }
-            }
-          }
-          EOF
-
-          cat > app/src/main/java/com/budilkaekipa/app/UnlockActivity.kt <<'EOF'
-          package com.budilkaekipa.app
-          import android.content.*; import android.os.*; import android.text.InputFilter; import android.widget.ArrayAdapter; import androidx.appcompat.app.AppCompatActivity
-          import com.budilkaekipa.app.databinding.ActivityUnlockBinding
-          class UnlockActivity: AppCompatActivity(){
-            private lateinit var b: ActivityUnlockBinding
-            private val team=listOf("David Javernik","Dani Javernik","Jure Urbas")
-            override fun onCreate(savedInstanceState: Bundle?){
-              super.onCreate(savedInstanceState); b=ActivityUnlockBinding.inflate(layoutInflater); setContentView(b.root)
-              b.spUser.adapter=ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, team)
-              refresh(); b.etCode.filters=arrayOf(InputFilter.LengthFilter(20))
-              b.btnStop.setOnClickListener{
-                val code=b.etCode.text.toString().trim().lowercase()
-                if(code=="buden sem"){ val who=b.spUser.selectedItem as String; TeamStore.setGreen(this, who); AlarmService.stopForeground(this); UI.toast(this,"Potrjeno: $who"); finish() }
-                else UI.toast(this,"Napačno. Vpiši: buden sem")
-              }
-            }
-            private fun refresh(){ val rows=TeamStore.listWithDots(this).map{(d,n)->"$d $n"}; b.lvTeamUnlock.adapter=ArrayAdapter(this, android.R.layout.simple_list_item_1, rows) }
-            companion object{ fun launchFromAlarm(ctx: Context){ val i=Intent(ctx, UnlockActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK); ctx.startActivity(i) } }
-          }
-          EOF
-
-          cat > app/src/main/java/com/budilkaekipa/app/MainActivity.kt <<'EOF'
-          package com.budilkaekipa.app
-          import android.app.TimePickerDialog; import android.os.Bundle; import android.widget.ArrayAdapter; import androidx.appcompat.app.AppCompatActivity
-          import com.budilkaekipa.app.databinding.ActivityMainBinding; import java.util.Calendar
-          class MainActivity: AppCompatActivity(){
-            private lateinit var b: ActivityMainBinding
-            private val team=listOf("David Javernik","Dani Javernik","Jure Urbas")
-            override 
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
