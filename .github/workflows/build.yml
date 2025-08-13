@@ -1,4 +1,3 @@
-
 name: Build APK
 
 on:
@@ -14,7 +13,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # USTVARI CEL ANDROID PROJEKT (z možnostjo Firebase)
+      # 1) Ustvari CEL Android projekt (z opcijskim Firebase)
       - name: Generate Android project
         shell: bash
         run: |
@@ -84,7 +83,7 @@ jobs:
             implementation("com.google.android.material:material:1.12.0")
             implementation("androidx.constraintlayout:constraintlayout:2.1.4")
 
-            // Firebase (pripravljenost; deluje tudi brez JSON-a, ker se plugin ne vklopi)
+            // Firebase pripravljeno (če dodaš google-services.json)
             implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
             implementation("com.google.firebase:firebase-auth-ktx")
             implementation("com.google.firebase:firebase-database-ktx")
@@ -102,7 +101,10 @@ jobs:
             <application android:allowBackup="true" android:label="Budilka Ekipa" android:icon="@android:drawable/ic_lock_idle_alarm" android:theme="@style/Theme.Material3.DayNight.NoActionBar">
               <activity android:name=".UnlockActivity" android:exported="false" android:turnScreenOn="true" android:showWhenLocked="true"/>
               <activity android:name=".MainActivity" android:exported="true">
-                <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+                <intent-filter>
+                  <action android:name="android.intent.action.MAIN"/>
+                  <category android:name="android.intent.category.LAUNCHER"/>
+                </intent-filter>
               </activity>
               <service android:name=".AlarmService" android:exported="false" android:foregroundServiceType="mediaPlayback"/>
               <receiver android:name=".AlarmReceiver" android:exported="true"/>
@@ -351,9 +353,4 @@ jobs:
           class MainActivity: AppCompatActivity(){
             private lateinit var b: ActivityMainBinding
             private val team=listOf("David Javernik","Dani Javernik","Jure Urbas")
-            override fun onCreate(savedInstanceState: Bundle?){
-              super.onCreate(savedInstanceState); b=ActivityMainBinding.inflate(layoutInflater); setContentView(b.root)
-              TeamStore.ensureInit(this, team); show(); b.swRepeat.isChecked=Prefs.getRepeat(this); refreshTeam()
-              b.btnPick.setOnClickListener{ pick() }
-              b.btnArm.setOnClickListener{ AlarmScheduler.scheduleExact(this); UI.toast(this,"Budilka pripravljena (${Prefs.getAlarmTime(this)})") }
-              b.swRepeat.setOnCheckedChangeListener{_,v-> Prefs.setRepeat
+            override 
