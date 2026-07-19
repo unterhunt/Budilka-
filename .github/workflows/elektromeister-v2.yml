@@ -32,7 +32,7 @@ jobs:
               .github/elektromeister-v2-bin/part05b \
               .github/elektromeister-v2-bin/part05c > /tmp/ElektroMeisterV2.zip
           test "$(wc -c < /tmp/ElektroMeisterV2.zip)" -eq 25774
-          echo "d77bf03cc3f7b373c9db13d253cbaa73523138fc091719ec0020e0497ebe67c8  /tmp/ElektroMeisterV2.zip" | sha256sum -c -
+          echo "32bfa4e702ebbf76b3a139cd7a328770ce0f77a5222bfa03ced1cfe459638701  /tmp/ElektroMeisterV2.zip" | sha256sum -c -
           unzip -tqq /tmp/ElektroMeisterV2.zip
           unzip -q /tmp/ElektroMeisterV2.zip -d /tmp/elektromeister-src
 
