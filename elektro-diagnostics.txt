@@ -1,0 +1,8 @@
+Base64 bytes: 20773
+51964c078117d18a92d87802fa73458ff1b917c7eb4d25158a4be44f2e33e955  /tmp/project.b64
+4000 .github/elektromojster/project.b64.00
+4000 .github/elektromojster/project.b64.01
+4000 .github/elektromojster/project.b64.02
+4000 .github/elektromojster/project.b64.03
+4033 .github/elektromojster/project.b64.04
+740 .github/elektromojster/project.b64.05
