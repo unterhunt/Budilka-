@@ -43,9 +43,18 @@ jobs:
       - name: Restore Elektro Mojster project
         shell: bash
         run: |
-          set -euxo pipefail
+          set -uxo pipefail
           cat .github/elektromojster/project.b64.* | tr -d '\r\n ' > /tmp/project.b64
-          echo "Base64 bytes: $(wc -c < /tmp/project.b64)"
+          {
+            echo "Base64 bytes: $(wc -c < /tmp/project.b64)"
+            sha256sum /tmp/project.b64
+            for f in .github/elektromojster/project.b64.*; do wc -c "$f"; done
+          } > elektro-diagnostics.txt
+          git config user.name "Elektro Mojster Builder"
+          git config user.email "actions@users.noreply.github.com"
+          git add elektro-diagnostics.txt
+          git commit -m "Add archive diagnostics [skip ci]" || true
+          git push origin HEAD:agent/elektromojster-apk || true
           test "$(wc -c < /tmp/project.b64)" -eq 20740
           base64 --decode /tmp/project.b64 > /tmp/ElektroMojster.zip
           echo "b4f0d1d296e50d25071184c87ab995760c5734d98923da47d473f79c3a29e1ca  /tmp/ElektroMojster.zip" | sha256sum -c -
