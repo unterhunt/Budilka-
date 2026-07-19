@@ -26,11 +26,13 @@ jobs:
           cat .github/elektromeister-v2-bin/part00 \
               .github/elektromeister-v2-bin/part01 \
               .github/elektromeister-v2-bin/part02 \
-              .github/elektromeister-v2-bin/part03-04 \
-              .github/elektromeister-v2-bin/part05-06 \
-              .github/elektromeister-v2-bin/part07-08 > /tmp/ElektroMeisterV2.zip
-          test "$(wc -c < /tmp/ElektroMeisterV2.zip)" -eq 25760
-          echo "29d7c6f6f10a169d1c178edaca61f07c110bb9e7b4a095391ed1c7c23d85d2a3  /tmp/ElektroMeisterV2.zip" | sha256sum -c -
+              .github/elektromeister-v2-bin/part03 \
+              .github/elektromeister-v2-bin/part04 \
+              .github/elektromeister-v2-bin/part05a \
+              .github/elektromeister-v2-bin/part05b \
+              .github/elektromeister-v2-bin/part05c > /tmp/ElektroMeisterV2.zip
+          test "$(wc -c < /tmp/ElektroMeisterV2.zip)" -eq 25774
+          echo "d77bf03cc3f7b373c9db13d253cbaa73523138fc091719ec0020e0497ebe67c8  /tmp/ElektroMeisterV2.zip" | sha256sum -c -
           unzip -tqq /tmp/ElektroMeisterV2.zip
           unzip -q /tmp/ElektroMeisterV2.zip -d /tmp/elektromeister-src
 
@@ -54,32 +56,13 @@ jobs:
           gradle-version: "8.13"
 
       - name: Build signed APK
-        id: android_build
-        continue-on-error: true
-        shell: bash
         working-directory: /tmp/elektromeister-src/ElektroMeisterV2_clean
-        run: |
-          set +e
-          gradle assembleDebug --no-daemon > /tmp/elektromeister-build.log 2>&1
-          status=$?
-          echo "$status" > /tmp/elektromeister-build-status.txt
-          exit "$status"
-
-      - name: Upload compiler log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: Elektro-Meister-v2-compiler-log
-          path: |
-            /tmp/elektromeister-build.log
-            /tmp/elektromeister-build-status.txt
+        run: gradle assembleDebug --no-daemon
 
       - name: Prepare APK
-        if: steps.android_build.outcome == 'success'
         run: cp /tmp/elektromeister-src/ElektroMeisterV2_clean/app/build/outputs/apk/debug/app-debug.apk Elektro-Meister-v2.apk
 
       - name: Upload APK
-        if: steps.android_build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: Elektro-Meister-v2-APK
