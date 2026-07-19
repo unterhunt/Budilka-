@@ -24,23 +24,7 @@ jobs:
       - name: Restore and verify project
         shell: bash
         run: |
-          set -uxo pipefail
-          {
-            sha256sum .github/elektromojster/project.b64.00
-            sha256sum .github/elektromojster/project.b64.01
-            sha256sum .github/elektromojster/project.b64.02
-            sha256sum .github/elektromojster/project.b64.03
-            sha256sum .github/elektromojster/project.b64.04a
-            sha256sum .github/elektromojster/project.b64.04b
-            sha256sum .github/elektromojster/project.b64.04c
-            sha256sum .github/elektromojster/project.b64.04d
-            sha256sum .github/elektromojster/project.b64.05
-          } > elektro-part-checksums.txt
-          git config user.name "Elektro Mojster Builder"
-          git config user.email "actions@users.noreply.github.com"
-          git add elektro-part-checksums.txt
-          git commit -m "Add part checksums [skip ci]" || true
-          git push origin HEAD:agent/elektromojster-apk || true
+          set -euxo pipefail
           cat \
             .github/elektromojster/project.b64.00 \
             .github/elektromojster/project.b64.01 \
@@ -49,7 +33,8 @@ jobs:
             .github/elektromojster/project.b64.04a \
             .github/elektromojster/project.b64.04b \
             .github/elektromojster/project.b64.04c \
-            .github/elektromojster/project.b64.04d \
+            .github/elektromojster/project.b64.04d1 \
+            .github/elektromojster/project.b64.04d2 \
             .github/elektromojster/project.b64.05 \
             | tr -d '\r\n ' > /tmp/project.b64
           test "$(wc -c < /tmp/project.b64)" -eq 20740
