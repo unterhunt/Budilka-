@@ -48,7 +48,7 @@ jobs:
           {
             echo "Base64 bytes: $(wc -c < /tmp/project.b64)"
             sha256sum /tmp/project.b64
-            for f in .github/elektromojster/project.b64.*; do wc -c "$f"; done
+            for f in .github/elektromojster/project.b64.*; do wc -c "$f"; sha256sum "$f"; done
           } > elektro-diagnostics.txt
           git config user.name "Elektro Mojster Builder"
           git config user.email "actions@users.noreply.github.com"
