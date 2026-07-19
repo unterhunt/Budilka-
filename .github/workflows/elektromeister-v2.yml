@@ -31,7 +31,7 @@ jobs:
               .github/elektromeister-v2-bin/part07-08 > /tmp/ElektroMeisterV2.zip
           test "$(wc -c < /tmp/ElektroMeisterV2.zip)" -eq 25760
           echo "29d7c6f6f10a169d1c178edaca61f07c110bb9e7b4a095391ed1c7c23d85d2a3  /tmp/ElektroMeisterV2.zip" | sha256sum -c -
-          unzip -t /tmp/ElektroMeisterV2.zip
+          unzip -tqq /tmp/ElektroMeisterV2.zip
           unzip -q /tmp/ElektroMeisterV2.zip -d /tmp/elektromeister-src
 
       - name: Set up Java 17
@@ -46,7 +46,7 @@ jobs:
       - name: Install Android platform
         run: |
           yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" >/dev/null
 
       - name: Set up Gradle 8.13
         uses: gradle/actions/setup-gradle@v4
@@ -54,8 +54,20 @@ jobs:
           gradle-version: "8.13"
 
       - name: Build signed APK
+        shell: bash
         working-directory: /tmp/elektromeister-src/ElektroMeisterV2_clean
-        run: gradle assembleDebug --no-daemon --stacktrace
+        run: |
+          set +e
+          gradle assembleDebug --no-daemon > /tmp/elektromeister-build.log 2>&1
+          status=$?
+          if [ "$status" -ne 0 ]; then
+            echo "===== ANDROID COMPILER ERROR ====="
+            grep -n -E "error:|FAILURE:|What went wrong|Execution failed|Caused by:" /tmp/elektromeister-build.log | tail -80 || true
+            echo "===== LAST 120 LINES ====="
+            tail -120 /tmp/elektromeister-build.log
+            exit "$status"
+          fi
+          tail -30 /tmp/elektromeister-build.log
 
       - name: Prepare APK
         run: cp /tmp/elektromeister-src/ElektroMeisterV2_clean/app/build/outputs/apk/debug/app-debug.apk Elektro-Meister-v2.apk
