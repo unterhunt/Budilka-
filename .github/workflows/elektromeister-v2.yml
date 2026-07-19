@@ -54,25 +54,32 @@ jobs:
           gradle-version: "8.13"
 
       - name: Build signed APK
+        id: android_build
+        continue-on-error: true
         shell: bash
         working-directory: /tmp/elektromeister-src/ElektroMeisterV2_clean
         run: |
           set +e
           gradle assembleDebug --no-daemon > /tmp/elektromeister-build.log 2>&1
           status=$?
-          if [ "$status" -ne 0 ]; then
-            echo "===== ANDROID COMPILER ERROR ====="
-            grep -n -E "error:|FAILURE:|What went wrong|Execution failed|Caused by:" /tmp/elektromeister-build.log | tail -80 || true
-            echo "===== LAST 120 LINES ====="
-            tail -120 /tmp/elektromeister-build.log
-            exit "$status"
-          fi
-          tail -30 /tmp/elektromeister-build.log
+          echo "$status" > /tmp/elektromeister-build-status.txt
+          exit "$status"
+
+      - name: Upload compiler log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Elektro-Meister-v2-compiler-log
+          path: |
+            /tmp/elektromeister-build.log
+            /tmp/elektromeister-build-status.txt
 
       - name: Prepare APK
+        if: steps.android_build.outcome == 'success'
         run: cp /tmp/elektromeister-src/ElektroMeisterV2_clean/app/build/outputs/apk/debug/app-debug.apk Elektro-Meister-v2.apk
 
       - name: Upload APK
+        if: steps.android_build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: Elektro-Meister-v2-APK
