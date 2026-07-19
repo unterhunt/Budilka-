@@ -1,0 +1,77 @@
+name: Build Elektro Mojster APK
+
+on:
+  push:
+    branches: ["agent/elektromojster-apk"]
+    paths:
+      - ".github/workflows/elektromojster-apk.yml"
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout build branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/elektromojster-apk
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Gradle 8.13
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+
+      - name: Restore Elektro Mojster project
+        shell: bash
+        run: |
+          cat .github/elektromojster/project.b64.* | base64 --decode > /tmp/ElektroMojster.zip
+          mkdir -p /tmp/elektromojster-src
+          unzip -q /tmp/ElektroMojster.zip -d /tmp/elektromojster-src
+
+      - name: Build signed debug APK
+        working-directory: /tmp/elektromojster-src/ElektroMojster
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Copy APK to branch
+        shell: bash
+        run: |
+          cp /tmp/elektromojster-src/ElektroMojster/app/build/outputs/apk/debug/app-debug.apk ElektroMojster.apk
+          sha256sum ElektroMojster.apk > ElektroMojster.apk.sha256
+
+      - name: Commit APK
+        shell: bash
+        run: |
+          git config user.name "Elektro Mojster Builder"
+          git config user.email "actions@users.noreply.github.com"
+          git add ElektroMojster.apk ElektroMojster.apk.sha256
+          if git diff --cached --quiet; then
+            echo "APK is unchanged."
+          else
+            git commit -m "Add Elektro Mojster APK [skip ci]"
+            git push origin HEAD:agent/elektromojster-apk
+          fi
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ElektroMojster-APK
+          path: ElektroMojster.apk
