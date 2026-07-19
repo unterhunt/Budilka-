@@ -3,6 +3,8 @@ name: Build Elektro-Meister V2 APK
 on:
   push:
     branches: ["agent/elektromeister-v2"]
+  pull_request:
+    branches: ["main"]
   workflow_dispatch:
 
 permissions:
