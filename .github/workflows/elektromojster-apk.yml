@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -37,7 +37,6 @@ jobs:
             .github/elektromojster/project.b64.04d2 \
             .github/elektromojster/project.b64.05 \
             | tr -d '\r\n ' > /tmp/project.b64
-          test "$(wc -c < /tmp/project.b64)" -eq 20740
           echo "343475012e4deea9267996edd25fa1a262f3df615727968b3f96b652d4b5f237  /tmp/project.b64" | sha256sum -c -
           base64 --decode /tmp/project.b64 > /tmp/ElektroMojster.zip
           echo "b4f0d1d296e50d25071184c87ab995760c5734d98923da47d473f79c3a29e1ca  /tmp/ElektroMojster.zip" | sha256sum -c -
@@ -67,27 +66,15 @@ jobs:
         working-directory: /tmp/elektromojster-src/ElektroMojster
         run: gradle assembleDebug --no-daemon --stacktrace
 
-      - name: Copy APK to branch
+      - name: Prepare APK
         shell: bash
         run: |
           cp /tmp/elektromojster-src/ElektroMojster/app/build/outputs/apk/debug/app-debug.apk ElektroMojster.apk
-          sha256sum ElektroMojster.apk > ElektroMojster.apk.sha256
-
-      - name: Commit APK
-        shell: bash
-        run: |
-          git config user.name "Elektro Mojster Builder"
-          git config user.email "actions@users.noreply.github.com"
-          git add ElektroMojster.apk ElektroMojster.apk.sha256
-          if git diff --cached --quiet; then
-            echo "APK is unchanged."
-          else
-            git commit -m "Add Elektro Mojster APK [skip ci]"
-            git push origin HEAD:agent/elektromojster-apk
-          fi
+          sha256sum ElektroMojster.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: ElektroMojster-APK
           path: ElektroMojster.apk
+          if-no-files-found: error
