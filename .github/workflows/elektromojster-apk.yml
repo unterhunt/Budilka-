@@ -43,22 +43,22 @@ jobs:
       - name: Restore Elektro Mojster project
         shell: bash
         run: |
-          set -uxo pipefail
-          cat .github/elektromojster/project.b64.* | tr -d '\r\n ' > /tmp/project.b64
-          {
-            echo "Base64 bytes: $(wc -c < /tmp/project.b64)"
-            sha256sum /tmp/project.b64
-            for f in .github/elektromojster/project.b64.*; do wc -c "$f"; sha256sum "$f"; done
-          } > elektro-diagnostics.txt
-          git config user.name "Elektro Mojster Builder"
-          git config user.email "actions@users.noreply.github.com"
-          git add elektro-diagnostics.txt
-          git commit -m "Add archive diagnostics [skip ci]" || true
-          git push origin HEAD:agent/elektromojster-apk || true
+          set -euxo pipefail
+          cat \
+            .github/elektromojster/project.b64.00 \
+            .github/elektromojster/project.b64.01 \
+            .github/elektromojster/project.b64.02 \
+            .github/elektromojster/project.b64.03 \
+            .github/elektromojster/project.b64.04a \
+            .github/elektromojster/project.b64.04b \
+            .github/elektromojster/project.b64.04c \
+            .github/elektromojster/project.b64.04d \
+            .github/elektromojster/project.b64.05 \
+            | tr -d '\r\n ' > /tmp/project.b64
           test "$(wc -c < /tmp/project.b64)" -eq 20740
+          echo "343475012e4deea9267996edd25fa1a262f3df615727968b3f96b652d4b5f237  /tmp/project.b64" | sha256sum -c -
           base64 --decode /tmp/project.b64 > /tmp/ElektroMojster.zip
           echo "b4f0d1d296e50d25071184c87ab995760c5734d98923da47d473f79c3a29e1ca  /tmp/ElektroMojster.zip" | sha256sum -c -
-          unzip -t /tmp/ElektroMojster.zip
           mkdir -p /tmp/elektromojster-src
           unzip -q /tmp/ElektroMojster.zip -d /tmp/elektromojster-src
 
