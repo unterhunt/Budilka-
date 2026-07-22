@@ -1,9 +1,9 @@
 name: Temp Android Tools PMS
 
 on:
-  push:
+  pull_request:
     branches:
-      - temp-android-tools-pms
+      - main
 
 jobs:
   package-tools:
