@@ -9,11 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Restore project from embedded archive
-        shell: bash
-        run: |
-          sed -n "/cat > \/tmp\/planedit.zip.b64 <<'EOF'/,/^[[:space:]]*EOF$/p" .github/workflows/planedit-build.yml | sed '1d;$d;s/^[[:space:]]*//' | tr -d '\n' | base64 -d > /tmp/planedit.zip
-          unzip -q /tmp/planedit.zip
+      - name: Restore project
+        run: unzip -q PlanEditMobile_Android_Source_v0.1.zip
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
