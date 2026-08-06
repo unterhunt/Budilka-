@@ -12,7 +12,7 @@ jobs:
       - name: Restore project from embedded archive
         shell: bash
         run: |
-          awk '/^UEsDB/{flag=1} flag{print} /^UEsFBg/{flag=0}' .github/workflows/planedit-build.yml | tr -d '\n' | base64 -d > /tmp/planedit.zip
+          sed -n "/cat > \/tmp\/planedit.zip.b64 <<'EOF'/,/^EOF$/p" .github/workflows/planedit-build.yml | sed '1d;$d' | tr -d '\n' | base64 -d > /tmp/planedit.zip
           unzip -q /tmp/planedit.zip
       - uses: actions/setup-java@v4
         with:
