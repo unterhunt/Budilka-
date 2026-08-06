@@ -47,12 +47,13 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import base64, re
+          import base64
           text = Path('.github/workflows/planedit-build.yml').read_text()
-          match = re.search(r"echo '([A-Za-z0-9+/=]+)' \\| base64 -d > planedit.zip", text)
-          if not match:
+          line = next((line for line in text.splitlines() if "| base64 -d > planedit.zip" in line), None)
+          if line is None or "echo '" not in line:
               raise SystemExit('Embedded PlanEdit source was not found')
-          Path('planedit.zip').write_bytes(base64.b64decode(match.group(1)))
+          payload = line.split("echo '", 1)[1].split("' | base64", 1)[0]
+          Path('planedit.zip').write_bytes(base64.b64decode(payload))
           PY
           unzip -q -o planedit.zip
 
@@ -81,6 +82,7 @@ jobs:
       - name: Publish APK to repository
         shell: bash
         run: |
+          git pull --rebase
           git add releases/PlanEditMobile-v0.1.0.apk releases/planedit_sha256.txt
           git commit -m "Publish PlanEdit Mobile APK run ${GITHUB_RUN_ID}"
           git push
