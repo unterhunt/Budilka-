@@ -1,0 +1,14 @@
+Base64 bytes: 20740
+766cb4c4adaa4ff613545753468067891ba0a2714a7aa135df7244a0cb214d8f  /tmp/project.b64
+4000 .github/elektromojster/project.b64.00
+8f4005c36fa2ffa318addc10f3f35d243ba70b2bfd59b8c64a8b6f3b98a1033e  .github/elektromojster/project.b64.00
+4000 .github/elektromojster/project.b64.01
+5765bda8a927009bf2c5e4a07f0832dfd520f8658ea4508d184ea4af1b018fe9  .github/elektromojster/project.b64.01
+4000 .github/elektromojster/project.b64.02
+dc71a7c920cb60c19acadbcc8bcc313b0bf10e16369312ab767b905491ebfa8e  .github/elektromojster/project.b64.02
+4000 .github/elektromojster/project.b64.03
+fe53a32cd605ad8457d67cf7f4e89203a410730c20b8f53d339e322066eafbff  .github/elektromojster/project.b64.03
+4000 .github/elektromojster/project.b64.04
+3ce598f8638648aff7efad8e2b5656a1a65e45ee456a153c4ece643ae79cb6b4  .github/elektromojster/project.b64.04
+740 .github/elektromojster/project.b64.05
+7562955d2caa4aa5f6a185f8a23cbd1787b1e022a240a779d8079e905077b935  .github/elektromojster/project.b64.05
